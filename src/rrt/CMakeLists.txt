@@ -22,8 +22,6 @@ include_directories(
   ${catkin_INCLUDE_DIRS}
 )
 
-add_executable(rrt_vis src/rrt_visualization.cpp)
-target_link_libraries(rrt_vis ${catkin_LIBRARIES})  
 
 add_executable(rrt_planning src/rrt_planning.cpp)
 target_link_libraries(rrt_planning ${catkin_LIBRARIES})  

@@ -4,6 +4,8 @@
 #include<visualization_msgs/Marker.h> 
 #include<ros/ros.h>
 #include<random>
+#include<fstream>
+
 
 #define goal_bias 0.5
 
@@ -206,7 +208,7 @@ class RRT
 
 
 // Helper functions
-void populateRviz(ros::Publisher marker_pub, Node init, Node goal);
+void populateRviz(ros::Publisher marker_pub, Node init, Node goal, std::string filename);
 
 Node runRRT(ros::Publisher marker_pub, int frame_count, RRT& rrt, Node goal);
 
@@ -214,22 +216,24 @@ void addEdge(geometry_msgs::Point p1, geometry_msgs::Point p2, ros::Publisher, b
 
 void drawFinalPath(geometry_msgs::Point p1, geometry_msgs::Point p2, ros::Publisher marker_pub);
 
-void populateObstacles(ros::Publisher marker_pub);
+void populateObstacles(ros::Publisher marker_pub, std::string filename);
 
 bool moveRobot(ros::Publisher marker_pub, geometry_msgs::Point, Node goal);
 
 
 int main(int argc, char **argv)
 {
+
+  std::string param;
   Node init, goal;
   init.id = -1;
   init.ParentId = -2;
   goal.id = 10000;
 
-  std::cout << "Enter start coordinates (should be less than 20): ";
+  std::cout << "Enter start coordinates (should be less than 20): \n";
   std::cin >> init.point.x >> init.point.y;
 
-  std::cout << "Enter goal coordinates (should be less than 20): ";
+  std::cout << "Enter goal coordinates (should be less than 20): \n";
   std::cin >> goal.point.x >> goal.point.y;
 
   float sigma = 0.5;
@@ -237,10 +241,14 @@ int main(int argc, char **argv)
   static RRT rrt(init, goal, sigma, 20, 0, 20, 0);
 
   ros::init(argc, argv, "RRT");
-  ros::NodeHandle n;
+  ros::NodeHandle n("~");
   ros::Publisher marker_pub = n.advertise<visualization_msgs::Marker>("visualization_marker",10);
-  // ros::Publisher chatter = 
   ros::Rate loop_rate(20);
+
+  n.getParam("obstacleFile", param);
+
+  std::cout << "Obstacle File: " << param << std::endl;
+  std::cin.get();
 
   static int frame_count = 0;
   static bool success = false;
@@ -248,7 +256,7 @@ int main(int argc, char **argv)
   while(ros::ok())
   {
     ROS_INFO("Frame: %d", frame_count);
-    populateRviz(marker_pub,init,goal);
+    populateRviz(marker_pub,init,goal, param);
 
     if(!success)
     {
@@ -389,7 +397,7 @@ void addEdge(geometry_msgs::Point p1, geometry_msgs::Point p2, ros::Publisher ma
     marker_pub.publish(edge);
 }
 
-void populateRviz(ros::Publisher marker_pub, Node init, Node goal) 
+void populateRviz(ros::Publisher marker_pub, Node init, Node goal, std::string filename) 
 {
   visualization_msgs::Marker v_start, v_end;
   v_start.type = v_end.type = visualization_msgs::Marker::POINTS;
@@ -420,114 +428,61 @@ void populateRviz(ros::Publisher marker_pub, Node init, Node goal)
   marker_pub.publish(v_start);
   marker_pub.publish(v_end);
 
-  populateObstacles(marker_pub);
+  populateObstacles(marker_pub,filename);
 
 };
 
-void populateObstacles(ros::Publisher marker_pub) 
+void populateObstacles(ros::Publisher marker_pub, std::string filename) 
 {
-  visualization_msgs::Marker obs1, obs2, obs3, obs4, obs5, obs6;
+  std::ifstream readfile(filename);
+  std::string text;
 
-  obs1.type = obs2.type = obs3.type = obs4.type = obs5.type = obs6.type = visualization_msgs::Marker::CUBE;
-  obs1.header.frame_id = obs2.header.frame_id = obs3.header.frame_id = obs4.header.frame_id = obs5.header.frame_id = obs6.header.frame_id = "map";
-  obs1.header.stamp = obs2.header.stamp = obs3.header.stamp = obs4.header.stamp = obs5.header.stamp = obs6.header.stamp = ros::Time::now();
-  obs1.ns = obs2.ns = obs3.ns = obs4.ns = obs5.ns = obs6.ns = "obstacles";
-  obs1.lifetime = obs2.lifetime = obs3.lifetime = obs4.lifetime = obs5.lifetime = obs6.lifetime = ros::Duration();
-  obs1.action = obs2.action = obs3.action = obs4.action = obs5.action = obs6.action = visualization_msgs::Marker::ADD;
+  int obs_count = 0;
 
-  obs1.id = 0;
-  obs2.id = 1;
-  obs3.id = 2;
-  obs4.id = 3;
-  obs5.id = 4;
-  obs6.id = 5;
+  while (std::getline(readfile,text))
+  {
+    visualization_msgs::Marker obs_curr;
+    obs_curr.type = visualization_msgs::Marker::CUBE;
+    obs_curr.header.frame_id = "map";
+    obs_curr.header.stamp = ros::Time::now();
+    obs_curr.ns = "obstacles";
+    obs_curr.lifetime = ros::Duration();
+    obs_curr.action = visualization_msgs::Marker::ADD;
+    obs_curr.id = obs_count;
 
-  obs1.scale.x = obs2.scale.x = 2;
-  obs1.scale.y = obs2.scale.y = 12;
-  obs3.scale.y = 4;
-  obs3.scale.x = 7;
-  obs4.scale.x = obs4.scale.y = 2;
-  obs5.scale.x = 5;
-  obs5.scale.y = 3;
-  obs6.scale.x = 3;
-  obs6.scale.y = 7;
+    obs_curr.scale.z = 0.25;
 
-  obs1.scale.z = obs2.scale.z = obs3.scale.z = obs4.scale.z = obs5.scale.z = obs6.scale.z = 0.25;
+    obs_curr.pose.position.z = 0.25;
 
+    obs_curr.pose.orientation.x = 0;
+    obs_curr.pose.orientation.y = 0;
+    obs_curr.pose.orientation.z = 0;
+    obs_curr.pose.orientation.w = 1;
 
-  obs1.pose.position.x = 8;
-  obs1.pose.position.y = 6;
-  obs1.pose.position.z = 0.25;
-  obs1.pose.orientation.x = 0.0;
-  obs1.pose.orientation.y = 0.0;
-  obs1.pose.orientation.z = 0.0;
-  obs1.pose.orientation.w = 1;
-  obs1.color.a = 1;
-  obs1.color.r = obs1.color.g = obs1.color.b = 6.6f;
+    obs_curr.color.a = 1;
+    obs_curr.color.r = obs_curr.color.g = obs_curr.color.b = 6.6f;
 
-  obs2.pose.position.x = 14;
-  obs2.pose.position.y = 14;
-  obs2.pose.position.z = 0.25;
-  obs2.pose.orientation.x = 0.0;
-  obs2.pose.orientation.y = 0.0;
-  obs2.pose.orientation.z = 0.0;
-  obs2.pose.orientation.w = 1;
-  obs2.color.a = 1;
-  obs2.color.r = obs2.color.g = obs2.color.b = 6.6f;
+    std::stringstream ss(text);
+    std::vector<double> v;
 
-  obs3.pose.position.x = 16.5;
-  obs3.pose.position.y = 2;
-  obs3.pose.position.z = 0.25;
-  obs3.pose.orientation.x = 0.0;
-  obs3.pose.orientation.y = 0.0;
-  obs3.pose.orientation.z = 0.0;
-  obs3.pose.orientation.w = 1;
-  obs3.color.a = 1;
-  obs3.color.r = obs3.color.g = obs3.color.b = 6.6f;
+    while (ss.good())
+    {
+      std::string substr;
+      getline(ss,substr,',');
+      v.push_back(std::stod(substr));  
+    }
 
-  obs4.pose.position.x = 16;
-  obs4.pose.position.y = 9;
-  obs4.pose.position.z = 0.25;
-  obs4.pose.orientation.x = 0.0;
-  obs4.pose.orientation.y = 0.0;
-  obs4.pose.orientation.z = 0.0;
-  obs4.pose.orientation.w = 1;
-  obs4.color.a = 1;
-  obs4.color.r = obs4.color.g = obs4.color.b = 6.6f;
+    obs_curr.scale.x = v[0];
+    obs_curr.scale.y = v[1];
+    obs_curr.pose.position.x = v[2];
+    obs_curr.pose.position.y = v[3];
 
-  obs5.pose.position.x = 2.5;
-  obs5.pose.position.y = 18.5;
-  obs5.pose.position.z = 0.25;
-  obs5.pose.orientation.x = 0.0;
-  obs5.pose.orientation.y = 0.0;
-  obs5.pose.orientation.z = 0.0;
-  obs5.pose.orientation.w = 1;
-  obs5.color.a = 1;
-  obs5.color.r = obs5.color.g = obs5.color.b = 6.6f;
+    marker_pub.publish(obs_curr);
 
-  obs6.pose.position.x = 1.5;
-  obs6.pose.position.y = 13.5;
-  obs6.pose.position.z = 0.25;
-  obs6.pose.orientation.x = 0.0;
-  obs6.pose.orientation.y = 0.0;
-  obs6.pose.orientation.z = 0.0;
-  obs6.pose.orientation.w = 1;
-  obs6.color.a = 1;
-  obs6.color.r = obs6.color.g = obs6.color.b = 6.6f;
+    obsVec.push_back(obs_curr);
 
-  marker_pub.publish(obs1);
-  marker_pub.publish(obs2);
-  marker_pub.publish(obs3);
-  marker_pub.publish(obs4);
-  marker_pub.publish(obs5);
-  marker_pub.publish(obs6);
-
-  obsVec.push_back(obs1);
-  obsVec.push_back(obs2);
-  obsVec.push_back(obs3);
-  obsVec.push_back(obs4);
-  obsVec.push_back(obs5);
-  obsVec.push_back(obs6);
+    obs_count++;
+  }
 }
 
 

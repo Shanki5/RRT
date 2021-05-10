@@ -18,4 +18,10 @@ Terminal 1: roscore
 
 Terminal 2: rosrun rviz rviz -d ~/RRT/src/rrt/launch/rviz_config.rviz
 
-Terminal 3: rosrun rrt rrt_planning _obstacleFile:=/home/shankrith/RRT_ROS_WS/src/rrt/src/obstacles.txt 
+Terminal 3: 
+
+cd ~/RRT
+
+source devel/setup.bash
+
+rosrun rrt rrt_planning _obstacleFile:=~/RRT_ROS_WS/src/rrt/src/obstacles.txt 
